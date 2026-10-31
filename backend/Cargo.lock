@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -82,8 +88,9 @@ dependencies = [
 [[package]]
 name = "gateway-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/zyycn/codex-proxy-rs.git?rev=ae5eaa46b447548571e6c46d69bd27d454adb785#ae5eaa46b447548571e6c46d69bd27d454adb785"
+source = "git+https://github.com/zyycn/codex-proxy-rs.git?rev=5ae38dc0c55c192815ef605dde6c05fd767a2c28#5ae38dc0c55c192815ef605dde6c05fd767a2c28"
 dependencies = [
+ "base64",
  "semver",
  "serde",
  "serde_json",
@@ -288,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "quota-manager"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "chrono",
  "gateway-plugin-sdk",
