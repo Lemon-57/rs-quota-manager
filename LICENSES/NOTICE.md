@@ -12,12 +12,12 @@ This repository is an example collection, not a runtime dependency.
 
 ## codex-proxy-ui
 
-Source: https://github.com/zyycn/codex-proxy-ui/tree/v0.4.1
+Source: https://github.com/zyycn/codex-proxy-ui/tree/v0.8.0
 
 License: Apache-2.0. The upstream package includes its LICENSE.
-The plugin imports the official v0.4.1 compiled release via public package
+The plugin imports the official v0.8.0 compiled release via public package
 exports. Its components and styles are bundled without copying component
 implementations. Shared theme tokens come from the host; local preview alone
 initializes the public theme utilities.
 
-Release SHA-256: 2e119cc504a61adf2a3dd62c3922b41762d23077feb354dc850885459dffe993
+Release SHA-256: 31513a734418c759eb03f139d3af1ad77424a64f41d7922e859afb6ecee4e60a
