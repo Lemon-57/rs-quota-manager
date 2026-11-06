@@ -1,11 +1,11 @@
 import type { Row, Settings, State } from './types'
 import { isAutomaticEligible, isFree } from './format'
-import { applyResolvedTheme, resolveTheme, DEFAULT_THEME_COLOR, DEFAULT_CUSTOM_THEME_COLOR } from '@codex-proxy/ui/theme'
+import { applyTheme, createTheme } from '@codex-proxy/ui/theme'
 
 export function installPreview() {
   if (window.codexProxyPlugin) return
   const theme = new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light'
-  applyResolvedTheme(document.documentElement, resolveTheme(theme, DEFAULT_THEME_COLOR, DEFAULT_CUSTOM_THEME_COLOR))
+  applyTheme(document.documentElement, createTheme({ scheme: theme }))
   const stamp = Date.now()
   const state = (): State => ({ automatic: true, cards: null, cardsObservedAtMs: stamp, cardsCheckedAtMs: stamp, error: null, pending: null, awaitingRecovery: false, lastAttemptAtMs: null, history: [] })
   const rows: Row[] = Array.from({ length: 43 }, (_, i) => ({
