@@ -1,21 +1,21 @@
 # 周限与重置卡
 
-独立 RS 网关插件，插件 ID 为 `personal.quota-manager`，当前源码版本 `0.1.7`，公开版本以 Releases 为准
+独立 RS 网关插件，插件 ID 为 `personal.quota-manager`，当前源码版本 `0.1.8`，公开版本以 Releases 为准
 
-基于上游 `v3.42.0` 的公开 SDK，固定提交 `7cee4309473949115610288fb7f29b3346e470c2`，清单为 v2、进程协议为 RPC v7，声明 management v2 与 maintenance v1
+基于上游 `v3.43.0` 的公开 SDK，固定提交 `402bc37fbb5c83378cc83cec89e9fa251e4a99c1`，清单为 v2、进程协议为 RPC v7，声明 management v2 与 maintenance v1
 
 ## 安装与兼容
 
-- 下载：[安装包与校验文件](https://github.com/Lemon-57/rs-quota-manager/releases)
-- 宿主兼容范围：`>=3.42.0, <3.43.0`，已核对 v3.42.0 的插件、账号、额度与卡片接口契约；验证范围见 [验证说明](docs/VERIFICATION.md)。
+- 下载：[安装包与校验文件](https://github.com/DNAlec/rs-quota-manager/releases)
+- 宿主兼容范围：`>=3.43.0, <3.44.0`，已核对 v3.43.0 的插件、账号、额度与卡片接口契约；验证范围见 [验证说明](docs/VERIFICATION.md)。
 - 当前制品：Linux x86_64，glibc 2.28 及以上。尚未发布 ARM64、Windows 或 macOS 安装包。
 - 插件 ID：`personal.quota-manager`。为保留既有安装配置和私有状态，继续沿用该身份。
 - 许可证：Apache-2.0，第三方来源见 [LICENSES/NOTICE.md](LICENSES/NOTICE.md)。
 
-CPR 3.42 使用 v0.1.7 或后续明确兼容的安装包。源码构建后，通过“插件管理 → 安装插件 → 上传”选择 `dist/` 内的 `.tar.gz`，先核对同目录 `.sha256`。
-通过 GitHub 安装已发布版本时，仓库填写 `Lemon-57/rs-quota-manager`，选择兼容发行版及匹配架构的附件；公开 Releases 是否包含 v0.1.7 以实际页面为准。不要上传 GitHub 自动生成的 Source code 归档。
+CPR 3.43 使用 v0.1.8 或后续明确兼容的安装包。源码构建后，通过“插件管理 → 安装插件 → 上传”选择 `dist/` 内的 `.tar.gz`，先核对同目录 `.sha256`。
+通过 GitHub 安装已发布版本时，仓库填写 `DNAlec/rs-quota-manager`，选择兼容发行版及匹配架构的附件；公开 Releases 是否包含 v0.1.8 以实际页面为准。不要上传 GitHub 自动生成的 Source code 归档。
 
-CPR 3.36 使用 v0.1.6；v0.1.7 的主题与 SDK 面向 CPR 3.42，不适用于旧宿主；CPR `>=3.26.2, <3.28.0` 继续使用 v0.1.5。已有安装应切换原实例的版本，保留插件 ID、设置、卡片缓存、未决请求和历史，不要删除实例后重建。
+CPR 3.42 使用 v0.1.7，CPR 3.36 使用 v0.1.6；CPR `>=3.26.2, <3.28.0` 继续使用 v0.1.5。已有安装应切换原实例的版本，保留插件 ID、设置、卡片缓存、未决请求和历史，不要删除实例后重建。
 首次安装时确认来源并接受完整信任，启用配置后从侧栏打开“周限与重置卡”。
 
 以下截图全部为本地模拟数据，不含真实账号、卡片或消费结果。
@@ -34,7 +34,7 @@ CSV 包含账号 ID、完整名称和邮箱，若原名称含敏感内容，请�
 
 ## 使用
 
-在网关的插件管理中上传安装 `dist/personal.quota-manager-0.1.7-x86_64-unknown-linux-gnu.tar.gz`，核对旁边的 SHA-256 文件，接受来源并确认配置处于启用状态，再打开“周限与重置卡”页面
+在网关的插件管理中上传安装 `dist/personal.quota-manager-0.1.8-x86_64-unknown-linux-gnu.tar.gz`，核对旁边的 SHA-256 文件，接受来源并确认配置处于启用状态，再打开“周限与重置卡”页面
 
 - 读取 RS 当前账号套餐和启用状态，排除套餐为 Free 的账号，账号列只显示完整邮箱，无邮箱时回退到名称；列表同时显示会员标识、周限、刷新时间、卡张数及到期时间，内部 ID 与账号名称仍参与搜索和导出
 - 按宿主真实 `planType` 判断套餐，名称带 `team+` 的 Free 同样排除，列表、汇总、后台查询和新消费共用该规则
@@ -89,13 +89,13 @@ cargo +1.99.1 zigbuild --manifest-path backend/Cargo.toml --release --locked --t
 cpr-plugin package --manifest plugin.json --binary backend/target/x86_64-unknown-linux-gnu/release/quota-manager --target x86_64-unknown-linux-gnu --resource-map web=frontend/dist --resource-map legal=LICENSES --output-dir dist
 ```
 
-`cpr-plugin` 应从上面的 v3.42.0 宿主固定提交构建，不能复用只支持旧进程协议的 CLI，安装包支持 Linux x86_64、glibc 2.28 及以上
+`cpr-plugin` 应从上面的 v3.43.0 宿主固定提交构建，不能复用只支持旧进程协议的 CLI，安装包支持 Linux x86_64、glibc 2.28 及以上
 Linux 发布同样使用 `cargo zigbuild --release --locked --target x86_64-unknown-linux-gnu.2.28` 保留 glibc 2.28 基线，再用同一 CLI 打包；普通原生构建只保证本机构建环境的 glibc 兼容性
 
 ## 上游复用
 
 按 Issue #278、官方 UI 安装文档和 plugins/workbench 示例核对，详见 `verification/UPSTREAM-COMPLIANCE.md`。
-UI 通过官方 v0.8.0 编译发行包安装，SHA-256 与官方校验文件一致，pnpm 锁文件另固定 SHA-512 integrity；业务代码只导入公开组件、样式、主题与 Vite 入口。
+UI 通过官方 v0.9.0 编译发行包安装，SHA-256 与官方校验文件一致，pnpm 锁文件另固定 SHA-512 integrity；业务代码只导入公开组件、样式、主题与 Vite 入口。
 插件示例仓库不是运行时依赖，复用其公开宿主桥、请求层与运行时解码组织方式，不导入其内部业务代码，也不降级当前宿主 SDK。
 来源与许可见 `LICENSES/NOTICE.md`，随插件包一并提供。
 
@@ -105,7 +105,7 @@ UI 通过官方 v0.8.0 编译发行包安装，SHA-256 与官方校验文件一�
 测试不访问真实网关或真实上游，不消费真实卡片
 
 `pnpm --dir frontend dev --port 5176` 提供带明确标识的本地模拟预览，发行页面只使用 `window.codexProxyPlugin` 宿主桥，不请求管理员密码或读取管理 Cookie
-安装包声明兼容 `>=3.42.0, <3.43.0`，本地模拟宿主验证 RPC v7、management v2、状态读写和业务协议；未在真实 v3.42.0 宿主完成安装与页面验收，未执行真实卡片消费。具体证据和限制见 [验证说明](docs/VERIFICATION.md)
+安装包声明兼容 `>=3.43.0, <3.44.0`，本地模拟宿主验证 RPC v7、management v2、状态读写和业务协议；未在真实 v3.43.0 宿主完成安装与页面验收，未执行真实卡片消费。具体证据和限制见 [验证说明](docs/VERIFICATION.md)
 
 ## 页面加载排查
 

@@ -1,12 +1,12 @@
 # 上游规范审查
 
-当前源码：personal.quota-manager v0.1.7，目标宿主 CPR v3.42.0。使用公开 ZCard 指标卡与 ZTag 会员标签，配色和样式取自共享组件。
+当前源码：personal.quota-manager v0.1.8，目标宿主 CPR v3.43.0。使用公开 ZCard 指标卡与 ZTag 会员标签，配色和样式取自共享组件。
 
 ## 依据
 
 - [RS Issue #278](https://github.com/zyycn/codex-proxy-rs/issues/278)：自定义业务采用插件；UI 库用于组件和主题一致性；plugins 仓库提供可运行示例。不要求把示例集合安装为运行时依赖。
-- RS v3.42.0，提交 `7cee4309473949115610288fb7f29b3346e470c2` 的 `.agents/skills/cpr-plugin-dev`、公开 SDK 及宿主桥契约。
-- [UI v0.8.0 安装说明](https://github.com/zyycn/codex-proxy-ui/blob/v0.8.0/playground/guide/installation.md)，当前源码参考 `d6100447010715c1203e67a4195fc6d875ff6249`。
+- RS v3.43.0，提交 `402bc37fbb5c83378cc83cec89e9fa251e4a99c1` 的 `.agents/skills/cpr-plugin-dev`、公开 SDK 及宿主桥契约。
+- [UI v0.9.0 安装说明](https://github.com/zyycn/codex-proxy-ui/blob/v0.9.0/playground/guide/installation.md)，当前源码参考 `61ceb0c0130463510fb922a554a398dee6b71a86`。
 - [plugins/workbench](https://github.com/zyycn/codex-proxy-plugins/tree/c1e1d5398990097f3987d595e5b3ea737ec2b66e/examples/workbench)，提交 `c1e1d5398990097f3987d595e5b3ea737ec2b66e` 的 README、api/host.ts、api/request.ts、validation.ts、api/schemas 与 api/modules。
 
 ## 已有复用和保留项
@@ -22,7 +22,7 @@
 
 | 原状态 | 修正 | 位置 |
 | --- | --- | --- |
-| UI 使用 Git 标签源码依赖 | 切到官方预编译 v0.8.0 tgz，核对官方 SHA-256，锁定 integrity | frontend/package.json、pnpm-lock.yaml |
+| UI 使用 Git 标签源码依赖 | 切到官方预编译 v0.9.0 tgz，核对官方 SHA-256，锁定 integrity | frontend/package.json、pnpm-lock.yaml |
 | 卡片选择为原生自写 radio | 使用公开 ZRadio，保留键盘导航、焦点和禁用状态 | frontend/src/App.vue |
 | 插件自定深浅主题兜底色 | 删除自有 HEX 兜底与深色规则，字体/颜色取宿主 token，根背景透明 | frontend/src/style.css |
 | API 混在一个泛型强制转换文件 | 按示例分离 host、request、modules、schemas，返回 unknown 后逐字段解码 | frontend/src/api/ |
@@ -33,7 +33,7 @@
 ## 宿主兼容合同
 
 - 宿主支持清单仅接受 RPC v7 与 management v2；`plugin.json` 显式声明 management v2，安装包由同提交官方 CLI 生成协议版本与文件摘要。
-- SDK 锁定上述提交，最低 Rust 工具链为 1.99.1。宿主范围限定为 `>=3.42.0, <3.43.0`，不把旧版 RPC v2 宿主包含在同一范围内。
+- SDK 锁定上述提交，最低 Rust 工具链为 1.99.1。宿主范围限定为 `>=3.43.0, <3.44.0`，不把旧版 RPC v2 宿主包含在同一范围内。
 - 账号运行投影、额度观测、`host.state.get/put`、重置卡查询/消费路由及 canonical UUIDv4 幂等字段继续使用公开合同；不调用新版宿主自动重置配置接口。
 - 私有状态命名空间、schemaVersion、插件 ID 与键名保持一致，版本切换沿用原实例；协议测试覆盖设置、逐号开关与未决请求的重启恢复。
 

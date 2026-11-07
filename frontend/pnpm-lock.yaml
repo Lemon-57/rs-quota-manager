@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@codex-proxy/ui':
-        specifier: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.8.0/codex-proxy-ui-0.8.0.tgz
-        version: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.8.0/codex-proxy-ui-0.8.0.tgz(jiti@2.7.0)(postcss@8.5.30)(vite@8.3.0(@types/node@26.5.1)(jiti@2.7.0))(vue@3.5.42(typescript@6.0.3))
+        specifier: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.9.0/codex-proxy-ui-0.9.0.tgz
+        version: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.9.0/codex-proxy-ui-0.9.0.tgz(jiti@2.7.0)(postcss@8.5.30)(vite@8.3.0(@types/node@26.5.1)(jiti@2.7.0))(vue@3.5.42(typescript@6.0.3))
       '@lucide/vue':
         specifier: 1.47.0
         version: 1.47.0(vue@3.5.42(typescript@6.0.3))
@@ -70,9 +70,9 @@ packages:
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
 
-  '@codex-proxy/ui@https://github.com/zyycn/codex-proxy-ui/releases/download/v0.8.0/codex-proxy-ui-0.8.0.tgz':
-    resolution: {integrity: sha512-XpcxFbM5PunedE9+qqb33u2brzFLDnJL1qoewByo1AZZACFXG2TrsxVGsvlpcoJ5INkq5LqDk/w4gAO84s5nAQ==, tarball: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.8.0/codex-proxy-ui-0.8.0.tgz}
-    version: 0.8.0
+  '@codex-proxy/ui@https://github.com/zyycn/codex-proxy-ui/releases/download/v0.9.0/codex-proxy-ui-0.9.0.tgz':
+    resolution: {integrity: sha512-gkZ/cbqcLxlcKVqZNdrSVZZO3Wv07P6OSXUZvkd4Vyf6fD8nrW1npKwb0sUBi3PqwlK4eDbmoV38WeH/PqCiIQ==, tarball: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.9.0/codex-proxy-ui-0.9.0.tgz}
+    version: 0.9.0
     engines: {node: '>=24'}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -808,7 +808,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@codex-proxy/ui@https://github.com/zyycn/codex-proxy-ui/releases/download/v0.8.0/codex-proxy-ui-0.8.0.tgz(jiti@2.7.0)(postcss@8.5.30)(vite@8.3.0(@types/node@26.5.1)(jiti@2.7.0))(vue@3.5.42(typescript@6.0.3))':
+  '@codex-proxy/ui@https://github.com/zyycn/codex-proxy-ui/releases/download/v0.9.0/codex-proxy-ui-0.9.0.tgz(jiti@2.7.0)(postcss@8.5.30)(vite@8.3.0(@types/node@26.5.1)(jiti@2.7.0))(vue@3.5.42(typescript@6.0.3))':
     dependencies:
       '@ant-design/colors': 8.0.1
       '@ant-design/fast-color': 3.0.1
