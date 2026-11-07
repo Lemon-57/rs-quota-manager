@@ -1,13 +1,13 @@
 [package]
 name = "quota-manager"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 rust-version = "1.99.1"
 license = "Apache-2.0"
 publish = false
 
 [dependencies]
-gateway-plugin-sdk = { git = "https://github.com/zyycn/codex-proxy-rs.git", rev = "7cee4309473949115610288fb7f29b3346e470c2", features = ["io"] }
+gateway-plugin-sdk = { git = "https://github.com/zyycn/codex-proxy-rs.git", rev = "402bc37fbb5c83378cc83cec89e9fa251e4a99c1", features = ["io"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 tokio = { version = "1.52.3", default-features = false, features = ["io-std", "macros", "rt", "sync", "time"] }
