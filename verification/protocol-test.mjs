@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const binary = process.argv[2] || fileURLToPath(new URL('../backend/target/debug/quota-manager.exe', import.meta.url))
+const binary = process.argv[2] || fileURLToPath(new URL(`../backend/target/debug/quota-manager${process.platform === 'win32' ? '.exe' : ''}`, import.meta.url))
 const stamp = Date.now()
 const account = (id, enabled = true, plan = 'team') => ({ account_id: id, provider_id: 'openai', name: `team+${id}+2026/10/28+workspace3`, email: `${id}@example.com`, group_ids: [], enabled, updated_at_ms: stamp, plan })
 const accounts = [account('acct_001'), account('acct_002', false), account('acct_003'), account('acct_004'), account('acct_005'), account('acct_006', true, 'free'), account('acct_007', true, ' Free '), account('acct_008', true, 'plus')]
@@ -17,12 +17,21 @@ const records = new Map(), posts = [], refreshCalls = [], reads = [], handles = 
 const runtimeAccount = a => ({ account_id: a.account_id, provider_id: a.provider_id, name: a.name, email: a.email, enabled: a.enabled,
   credential_revision: 1, upstream_user_id: null, upstream_account_id: null, plan_type: a.plan, authentication_kind: 'oauth', credential_state: 'ready', has_refresh_token: true, access_token_expires_at_ms: null, next_refresh_at_ms: null })
 let consumeMode = 'reset', child, buffered, pending, ready, sequence = 99, errors = '', activeMode = 'normal', incarnation, handleSequence = 0, runtimeReads = 0, cardQueries = 0, failSelectionWrite = false
+let callbacks, suspended, resumedCount = 0, consumedCount = 0
 
 function send(meta, payload = Buffer.alloc(0)) {
   if (!(payload instanceof Buffer)) payload = Buffer.from(JSON.stringify(payload))
+  meta = structuredClone(meta)
+  let data = Buffer.alloc(0)
+  const owner = meta.type === 'hello' ? meta.handshake : meta
+  const key = meta.type === 'hello' ? 'configuration' : meta.type === 'call' || meta.type === 'callback' ? 'params' : meta.type === 'result' ? 'result' : null
+  if (key) {
+    data = Buffer.from(JSON.stringify(owner[key])); delete owner[key]
+    meta.data_bytes = data.length
+  }
   const json = Buffer.from(JSON.stringify(meta)), header = Buffer.alloc(12)
-  header.writeUInt32BE(json.length); header.writeBigUInt64BE(BigInt(payload.length), 4)
-  child.stdin.write(Buffer.concat([header, json, payload]))
+  header.writeUInt32BE(json.length); header.writeBigUInt64BE(BigInt(data.length + payload.length), 4)
+  child.stdin.write(Buffer.concat([header, json, data, payload]))
 }
 function result(id, value = {}, payload = Buffer.alloc(0)) { send({ type: 'result', id, result: value }, payload) }
 function error(id, code = 'rejected') { send({ type: 'error', id, error: { code, message: 'mock rejection', send_state: 'not_sent' } }) }
@@ -89,30 +98,63 @@ function parse() {
   while (buffered.length >= 12) {
     const m = buffered.readUInt32BE(), p = Number(buffered.readBigUInt64BE(4)), total = 12 + m + p
     if (buffered.length < total) return
-    const meta = JSON.parse(buffered.subarray(12, 12 + m).toString()), payload = buffered.subarray(12 + m, total); buffered = buffered.subarray(total)
-    if (meta.type === 'ready') ready.resolve()
-    else if (meta.type === 'callback') callback(meta, payload).catch(e => { ready.reject(e); for (const x of pending.values()) x.reject(e) })
+    const meta = JSON.parse(buffered.subarray(12, 12 + m).toString())
+    assert.ok(m <= 65536)
+    const dataStart = 12 + m + (meta.request_context_bytes ?? 0), dataEnd = dataStart + (meta.data_bytes ?? 0)
+    assert.ok(dataEnd <= total)
+    if (meta.type === 'result' || meta.type === 'callback') {
+      assert.ok(meta.data_bytes > 0)
+      const key = meta.type === 'result' ? 'result' : 'params'
+      assert.ok(!(key in meta), 'RPC v7 business JSON belongs in the payload prefix')
+      meta[key] = JSON.parse(buffered.subarray(dataStart, dataEnd).toString())
+    }
+    const payload = buffered.subarray(dataEnd, total); buffered = buffered.subarray(total)
+    if (meta.type === 'ready') {
+      assert.equal(meta.protocol_version, 7); assert.equal(meta.incarnation, incarnation)
+      ready.resolve()
+    }
+    else if (meta.type === 'suspend') {
+      assert.ok(pending.has(meta.id)); assert.ok(!suspended.has(meta.id))
+      suspended.set(meta.id, meta.epoch)
+    }
+    else if (meta.type === 'resume') {
+      assert.equal(suspended.get(meta.id), meta.epoch)
+      suspended.delete(meta.id); resumedCount++
+      send({ type: 'resumed', id: meta.id, epoch: meta.epoch })
+    }
+    else if (meta.type === 'callback_consumed') {
+      assert.equal(callbacks.get(meta.id), meta.parent_id)
+      callbacks.delete(meta.id); consumedCount++
+    }
+    else if (meta.type === 'callback') {
+      assert.ok(pending.has(meta.parent_id)); callbacks.set(meta.id, meta.parent_id)
+      callback(meta, payload).catch(e => { ready.reject(e); for (const x of pending.values()) x.reject(e) })
+    }
     else if (meta.type === 'result' || meta.type === 'error') {
       const waiter = pending.get(meta.id)
       if (waiter) { pending.delete(meta.id); meta.type === 'error' ? waiter.reject(new Error(JSON.stringify(meta.error))) : waiter.resolve({ result: meta.result, payload }) }
     }
   }
 }
-async function start() {
+async function start(protocolVersion = 7) {
   buffered = Buffer.alloc(0); pending = new Map(); ready = Promise.withResolvers(); errors = ''; incarnation = `test_${Date.now()}`
+  callbacks = new Map(); suspended = new Map()
   child = spawn(binary, [], { stdio: ['pipe', 'pipe', 'pipe'] })
   child.stdout.on('data', data => { buffered = Buffer.concat([buffered, data]); parse() })
   child.stderr.on('data', data => { errors += data }); child.on('error', e => ready.reject(e))
   child.on('exit', code => { if (code) { const e = new Error(`Plugin exited ${code}: ${errors}`); ready.reject(e); for (const w of pending.values()) w.reject(e) } })
-  send({ type: 'hello', handshake: { protocol_version: 2, artifact_sha256: 'a'.repeat(64), plugin_id: 'personal.quota-manager', instance_id: 'test_instance', generation: 1, incarnation, configuration: {}, contributes: {
-    management: { id: 'personal.quota-manager.management', version: 1, stages: ['management'] }, maintenance: { id: 'personal.quota-manager.maintenance', version: 1, stages: ['maintenance'] },
+  send({ type: 'hello', handshake: { protocol_version: protocolVersion, artifact_sha256: 'a'.repeat(64), plugin_id: 'personal.quota-manager', instance_id: 'test_instance', generation: 1, incarnation, configuration: {}, contributes: {
+    management: { id: 'personal.quota-manager.management', version: 2, stages: ['management'] }, maintenance: { id: 'personal.quota-manager.maintenance', version: 1, stages: ['maintenance'] },
   } } })
   await Promise.race([ready.promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`Handshake timeout: ${errors}`)), 10000).unref())])
 }
-async function stop() { const exited = new Promise(resolve => child.once('exit', resolve)); send({ type: 'shutdown' }); child.stdin.end(); await exited }
+async function stop() {
+  const exited = new Promise(resolve => child.once('exit', resolve)); send({ type: 'shutdown' }); child.stdin.end(); await exited
+  assert.equal(callbacks.size, 0); assert.equal(suspended.size, 0)
+}
 async function call(method, params = {}, payload = Buffer.alloc(0), stage = 'management') {
   const id = sequence += 2, waiter = Promise.withResolvers(); pending.set(id, waiter)
-  send({ type: 'call', id, method, params, context: { call_id: id, instance_id: 'test_instance', generation: 1, incarnation, stage, timeout_ms: 60000, resource_stream: false, resource_scope_id: `scope_${id}` } }, payload)
+  send({ type: 'call', id, method, params, context: { call_id: id, instance_id: 'test_instance', generation: 1, incarnation, stage, timeout_ms: stage === 'registration' ? 5000 : 60000, resource_stream: false, resource_scope_id: `scope_${id}` } }, payload)
   return Promise.race([waiter.promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`Call timeout ${method}: ${errors}`)), 10000).unref())])
 }
 async function request(path, body, query = '') {
@@ -122,10 +164,13 @@ async function request(path, body, query = '') {
 async function scan() { const s = records.get('scan'); if (s) s.value.nextAtMs = 0; return call('plugin.reconcile', {}, Buffer.alloc(0), 'maintenance') }
 const passed = [], check = label => { passed.push(label); console.log(`PASS ${label}`) }
 try {
+  await assert.rejects(start(2), /Plugin exited/)
+  assert.equal(reads.length, 0)
+  check('Unsupported RPC version is rejected before business operations')
   await start()
   const registrationReply = await call('management.register', {}, Buffer.alloc(0), 'registration')
   const registration = JSON.parse(registrationReply.payload.toString()); assert.equal(registration.pages[0].entry, 'web/index.html'); assert.equal(registration.routes.length, 8)
-  check('SDK v2 handshake and management registration')
+  check('RPC v7 handshake and management v2 registration')
   const page = await request('api/accounts'); assert.equal(page.status, 200); assert.equal(page.value.accounts.length, 2); assert.equal(page.value.nextCursor, 'acct_002'); assert.equal(page.value.accounts[0].account.name, accounts[0].name)
   assert.equal(page.value.accounts[0].account.plan_type, 'team'); assert.equal(page.value.accounts[1].account.enabled, false)
   assert.ok(page.value.accounts.every(row=>!row.state.automatic))
@@ -194,5 +239,8 @@ try {
   consumeMode='reset';on=await automatic(true);assert.equal(on.status,200);records.get('account/acct_001').value.awaitingRecovery=false;records.get('account/acct_001').value.lastAttemptAtMs=Date.now()-120000;quotas.set('acct_001',quota('acct_001',100));records.get('scan').value.cursor=null;activeMode='automation_off';const beforeOffDuringRefresh=posts.length;await scan();assert.equal(posts.length,beforeOffDuringRefresh);assert.equal(records.get('settings').value.automatic,false);activeMode='normal'
   check('Master off observed during upstream refresh prevents a pending automatic redemption')
   assert.ok(!reads.includes('host.auth.get')); assert.ok(!reads.includes('host.auth.save')); check('No credentials are read or account settings modified')
-  await stop(); console.log(JSON.stringify({ passed: passed.length, tests: passed, mockRedemptions: posts.length, productionRequests: 0 }, null, 2))
+  await stop()
+  assert.ok(resumedCount > 0); assert.ok(consumedCount > 0)
+  check('RPC v7 suspension resumes and all callback results are released')
+  console.log(JSON.stringify({ passed: passed.length, tests: passed, resumedCount, consumedCount, mockRedemptions: posts.length, productionRequests: 0 }, null, 2))
 } catch (e) { child?.kill(); console.error(e); process.exitCode = 1 }
