@@ -1,4 +1,4 @@
-//! 周限判断、重置卡选择与插件持久化数据
+//! 额度恢复判断、重置卡与订阅快照的持久化数据
 
 use gateway_plugin_sdk::call::data::{QuotaFacts, QuotaWindowFacts};
 use serde::{Deserialize, Serialize};
@@ -8,9 +8,8 @@ pub fn is_free(plan_type: Option<&str>) -> bool {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
-    pub automatic: bool,
     pub check_interval_seconds: u64,
     pub cards_refresh_seconds: u64,
     pub batch_size: u16,
@@ -19,7 +18,6 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            automatic: false,
             check_interval_seconds: 30,
             cards_refresh_seconds: 3600,
             batch_size: 20,
@@ -70,27 +68,6 @@ impl Card {
                 .as_ref()
                 .is_none_or(|_| self.expiry_ms().is_some_and(|v| v > now))
     }
-
-    pub fn resets_weekly(&self) -> bool {
-        self.reset_type
-            .as_deref()
-            .is_some_and(|v| matches!(v, "full" | "weekly"))
-            || self.title.as_deref().is_some_and(|v| {
-                let v = v.to_lowercase();
-                v.contains("weekly") || v.contains("周")
-            })
-    }
-}
-
-pub fn first_expiring_weekly_card(cards: &Cards, now: i64) -> Option<&Card> {
-    if cards.available_count == 0 {
-        return None;
-    }
-    cards
-        .credits
-        .iter()
-        .filter(|v| v.available(now) && v.resets_weekly())
-        .min_by_key(|v| (v.expiry_ms().unwrap_or(i64::MAX), &v.id))
 }
 
 pub fn weekly_windows(quota: &QuotaFacts) -> Vec<&QuotaWindowFacts> {
@@ -115,16 +92,6 @@ pub fn account_weekly(quota: &QuotaFacts) -> Option<&QuotaWindowFacts> {
     Some(first)
 }
 
-pub fn exhausted(quota: &QuotaFacts, now: i64) -> bool {
-    quota
-        .observed_at_ms
-        .is_some_and(|t| t <= now && now - t <= 120000)
-        && account_weekly(quota).is_some_and(|w| {
-            w.used_percent.is_some_and(|v| v.is_finite() && v >= 100.0)
-                && w.reset_at_ms.is_some_and(|t| t > now)
-        })
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pending {
@@ -146,8 +113,17 @@ pub struct Event {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Subscription {
+    pub starts_at: Option<String>,
+    pub expires_at: String,
+    pub observed_at: String,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AccountState {
-    pub automatic: bool,
+    pub subscription: Option<Subscription>,
+    pub subscription_checked_at_ms: Option<i64>,
     pub cards: Option<Cards>,
     pub cards_observed_at_ms: Option<i64>,
     pub cards_checked_at_ms: Option<i64>,
@@ -156,22 +132,6 @@ pub struct AccountState {
     pub awaiting_recovery: bool,
     pub last_attempt_at_ms: Option<i64>,
     pub history: Vec<Event>,
-}
-
-impl Default for AccountState {
-    fn default() -> Self {
-        Self {
-            automatic: true,
-            cards: None,
-            cards_observed_at_ms: None,
-            cards_checked_at_ms: None,
-            error: None,
-            pending: None,
-            awaiting_recovery: false,
-            last_attempt_at_ms: None,
-            history: Vec::new(),
-        }
-    }
 }
 
 impl AccountState {
@@ -211,69 +171,6 @@ mod tests {
                 reset_at_ms: Some(reset),
             }],
         }
-    }
-
-    #[test]
-    fn only_fresh_account_wide_weekly_exhaustion_triggers() {
-        assert!(exhausted(
-            &quota("codex:604800s", 604800, 100.0, 1000, 200000),
-            2000
-        ));
-        assert!(!exhausted(
-            &quota("codex:18000s", 18000, 100.0, 1000, 200000),
-            2000
-        ));
-        assert!(!exhausted(
-            &quota("review:604800s", 604800, 100.0, 1000, 200000),
-            2000
-        ));
-        assert!(!exhausted(
-            &quota("codex:604800s", 604800, 100.0, 1000, 200000),
-            122000
-        ));
-        assert!(!exhausted(
-            &quota("codex:604800s", 604800, 100.0, 1000, 1500),
-            2000
-        ));
-        assert!(!exhausted(
-            &quota("codex:604800s", 604800, 99.9, 1000, 200000),
-            2000
-        ));
-    }
-
-    #[test]
-    fn picks_earliest_unexpired_weekly_card() {
-        let card = |id: &str, expiry: &str, title: &str, status: &str| Card {
-            id: id.into(),
-            expires_at: Some(expiry.into()),
-            title: Some(title.into()),
-            status: Some(status.into()),
-            expires_at_display: None,
-            reset_type: None,
-        };
-        let cards = Cards {
-            available_count: 4,
-            credits: vec![
-                card(
-                    "late",
-                    "2026-12-02T00:00:00Z",
-                    "Full reset (Weekly + 5 hr)",
-                    "available",
-                ),
-                card(
-                    "early",
-                    "2026-12-01T00:00:00Z",
-                    "Full reset (Weekly + 5 hr)",
-                    "available",
-                ),
-                card("expired", "2025-12-01T00:00:00Z", "Weekly", "available"),
-                card("short", "2026-11-01T00:00:00Z", "5 hr reset", "available"),
-            ],
-        };
-        let now = chrono::DateTime::parse_from_rfc3339("2026-10-14T00:00:00Z")
-            .unwrap()
-            .timestamp_millis();
-        assert_eq!(first_expiring_weekly_card(&cards, now).unwrap().id, "early");
     }
 
     #[test]

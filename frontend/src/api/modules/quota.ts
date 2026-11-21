@@ -1,14 +1,13 @@
-import type { Settings } from '../../types'
 import { request } from '../request'
-import { parsePage, parsePolicy, parseSettings, parseUpdate } from '../schemas/quota'
+import { parsePage, parsePolicy, parseResetCardAutomation, parseState, parseStatus, parseUpdate } from '../schemas/quota'
 
 export const api = {
-  settings: () => request('GET', 'api/settings').then(parseSettings),
-  saveSettings: (value: Settings, expectedVersion: number | null) => request('POST', 'api/settings', { value, expectedVersion }).then(parseSettings),
-  automatic: (enabled: boolean, expectedVersion: number | null) => request('POST', 'api/automatic', { enabled, expectedVersion }).then(parseSettings),
-  accounts: (cursor?: string) => request('GET', 'api/accounts', undefined, cursor ? new URLSearchParams({ cursor }).toString() : undefined).then(parsePage),
-  policy: (accountId: string, automatic: boolean, expectedVersion: number | null) => request('POST', 'api/policy', { accountId, automatic, expectedVersion }).then(parsePolicy),
+  status: () => request('GET', 'api/status').then(parseStatus),
+  accounts: (page = 1) => request('GET', 'api/accounts', undefined, new URLSearchParams({ page: String(page) }).toString()).then(parsePage),
+  setQuotaCredits: (accountId: string, enabled: boolean) => request('POST', 'api/auto-use-quota-credits', { accountId, enabled }).then(parsePolicy),
+  setResetCards: (accountId: string, enabled: boolean) => request('POST', 'api/auto-use-reset-cards', { accountId, enabled }).then(parseResetCardAutomation),
   refresh: (accountId: string) => request('POST', 'api/refresh', { accountId }).then(parseUpdate),
+  refreshCards: (accountId: string) => request('POST', 'api/refresh-cards', { accountId }).then(parseState),
   consume: (accountId: string, creditId: string | null) => request('POST', 'api/consume', { accountId, creditId }).then(parseUpdate),
   retry: (accountId: string, requestId: string) => request('POST', 'api/retry', { accountId, requestId }).then(parseUpdate),
 }

@@ -1,10 +1,10 @@
 //! 插件协议会话与串行管理、维护入口
 
-mod automation;
 mod engine;
 mod host;
 mod management;
 mod model;
+mod native;
 
 use gateway_plugin_sdk::{
     Manifest,

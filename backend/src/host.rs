@@ -3,13 +3,17 @@
 use gateway_plugin_sdk::{
     ErrorCode, PluginFault,
     call::{
-        host::{StateGetResult, StatePutResult},
+        host::{
+            STATE_GET, STATE_PUT, StateGetRequest, StateGetResult, StatePutRequest, StatePutResult,
+        },
         middleware::{MiddlewareHeader, http::Version},
     },
     client::{HostClient, HttpBody, HttpFrame, HttpRequest},
 };
 use serde::{Serialize, de::DeserializeOwned};
-use serde_json::{Value, json};
+use serde_json::Value;
+
+const STATE_NAMESPACE: &str = "quota-manager";
 
 pub fn fault(message: &str) -> PluginFault {
     PluginFault::new(ErrorCode::Rejected, message)
@@ -25,10 +29,14 @@ pub async fn load<T: DeserializeOwned + Default>(
     host: &HostClient,
     key: &str,
 ) -> Result<(T, Option<u64>), PluginFault> {
+    let request = StateGetRequest {
+        namespace: STATE_NAMESPACE.into(),
+        key: key.into(),
+    };
     let reply = host
         .call(
-            "host.state.get",
-            json!({"namespace":"quota-manager","key":key}),
+            STATE_GET,
+            serde_json::to_value(request).map_err(|_| fault("插件状态查询参数无效"))?,
             vec![],
         )
         .await
@@ -50,10 +58,18 @@ pub async fn save<T: Serialize>(
     value: &T,
     version: Option<u64>,
 ) -> Result<u64, PluginFault> {
-    let params =
-        json!({"namespace":"quota-manager","key":key,"value":value,"expected_version":version});
+    let request = StatePutRequest {
+        namespace: STATE_NAMESPACE.into(),
+        key: key.into(),
+        value: serde_json::to_value(value).map_err(|_| fault("插件状态编码失败"))?,
+        expected_version: version,
+    };
     let reply = host
-        .call("host.state.put", params, vec![])
+        .call(
+            STATE_PUT,
+            serde_json::to_value(request).map_err(|_| fault("插件状态保存参数无效"))?,
+            vec![],
+        )
         .await
         .map_err(|e| e.into_plugin_fault())?;
     let result: StatePutResult =
